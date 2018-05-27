@@ -10,9 +10,9 @@ This project is not fully complete or tested. I have no put alot of effort in to
 I will covert this to an executable later on when it is more complete.
 
 # Running
-Im pretty sure this is only runnable currently on Python3.
+This is only runnable on Python3 however I never tested on 2.7.
 
-Their are no dependencies.
+No dependencies 
 
 Run dota.py
 Input the steamid of the user you would like to scout.
