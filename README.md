@@ -5,7 +5,7 @@ A Python Program that will scout dota 2 players.
 
 So far you can input multiple steamids and can return the Personaname, Rank, Avg KDA of recent games, Avg Teamfight Plus Minus.
 
-This project is not fully complete or tested. I have no put alot of effort in to making it nice and clean.
+This project is not fully complete or tested. I have not put alot of effort in to making it nice and clean.
 
 I will covert this to an executable later on when it is more complete.
 
