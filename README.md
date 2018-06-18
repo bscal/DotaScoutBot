@@ -1,5 +1,5 @@
 # DotaScoutBot
-A Python Program that will scout dota 2 players.
+A Python Program that will scout dota 2 players. Uses OpenDota API
 
 *The program is in early stages of development and not all features I wanted to add are working or added*
 
@@ -14,6 +14,7 @@ This is only runnable on Python3 however I never tested on 2.7.
 
 No dependencies 
 
-Run dota.py
-Input the steamid of the user you would like to scout.
--update will update heroes and items data files later on but currently serves no purpose.
+Usage: python dota.py (steamid1) (steamid2)
+
+# Updates
+I am working on so you can parse a whole match or matches for a specified player.

@@ -7,10 +7,41 @@ For tf_score in parse_teamfights() dire advantage is represented by - negative i
 """
 from teamfight import Teamfight, TMFPlayer
 
+# Constant used in usage algorithms
+USAGE_USES_MODIFIER = 5
+
+
+def avg_usage(scores, num_of_teamfights):
+	"""
+	Averages the usage scores in scores
+	:param scores:
+	:param num_of_teamfights:
+	:type scores: list[float]
+	:type num_of_teamfights: int
+	:returns avg_usage: int
+	"""
+	avg_usg = 0
+	for i in scores:
+		avg_usg += i
+
+	avg_usg /= num_of_teamfights
+	return avg_usg
+
+
+def calculate_teamfight(team):
+	return team.dmg + team.heal + (team.casts * USAGE_USES_MODIFIER)
+
+
+def calculate_usage(player, team_score, match_score, total_fights):
+	player_score = player.damage + player.healing + ((player.item_uses + player.ability_uses) * USAGE_USES_MODIFIER)
+
+	return 100 * (player_score / team_score)
+
 
 class Match:
 	"""Used to hold basic data of a dota match"""
-	def __init__(self):
+	def __init__(self, match_index):
+		self.index = match_index
 		self.duration = 0
 		self.r_score = 0
 		self.d_score = 0
@@ -28,6 +59,8 @@ class Player:
 		self.rank = 0
 		self.wins = 0
 		self.loses = 0
+
+		self.total_matches = 0
 
 		self.kills = []
 		self.assists = []
@@ -72,42 +105,42 @@ class Player:
 
 				if player["buybacks"] != 0:
 					p.buyback = True
+
 				p.deaths = player["deaths"]
 				p.damage = player["damage"]
 				p.healing = player["healing"]
 				p.gold_delta = player["gold_delta"]
 				p.xp_delta = player["xp_delta"]
-				for k, v in player["ability_uses"].items():
+
+				for v in player["ability_uses"].values():
 					p.ability_uses += v
-				for k, v in player["item_uses"].items():
+				for v in player["item_uses"].values():
 					p.item_uses += v
-				for k, v in player["killed"].items():
+				for v in player["killed"].values():
 					p.kills += v
 
 				if count < 5:
 					p.side = "r"
-					tf.r_dmg += p.damage
-					tf.r_heal += p.healing
-					tf.r_casts += (p.ability_uses + p.item_uses)
-					tf.r_kills += p.kills
+					tf.radiant_team.dmg += p.damage
+					tf.radiant_team.heal += p.healing
+					tf.radiant_team.casts += (p.ability_uses + p.item_uses)
+					tf.radiant_team.kills += p.kills
 				else:
 					p.side = "d"
-					tf.r_dmg += p.damage
-					tf.r_heal += p.healing
-					tf.r_casts += (p.ability_uses + p.item_uses)
-					tf.r_kills += p.kills
+					tf.dire_team.dmg += p.damage
+					tf.dire_team.heal += p.healing
+					tf.dire_team.casts += (p.ability_uses + p.item_uses)
+					tf.dire_team.kills += p.kills
 
 				p.hero_id = heroes[count]
-				if p.hero_id == hero_id:
-					side = p.side
 
 				count += 1
 
-				if p.damage < 1:
-					tf.is_in = True
+				if p.damage > 1:
 					tf.players.append(p)
-				else:
-					tf.is_in = False
+					if p.hero_id == hero_id:
+						side = p.side
+						tf.is_in = True
 
 			teamfights.append(tf)
 
@@ -128,29 +161,27 @@ class Player:
 		ipm = 0
 		# Out plus minus
 		opm = 0
+		num_of_fights = len(teamfights)
 		for tf in teamfights:
 			r_gold = 0
 			d_gold = 0
 			for p in tf.players:
-				print("ran")
-				# Teamfight team gold totals
+				# Adds up total gold
+				team_usage_score = 0
 				if p.side == "r":
 					r_gold += p.gold_delta
-
-					# Teamfight Usage Score
-					# TODO USAGE BROKEN
-					usage = 100 * (((p.damage + 1) * (p.healing + 1) * (p.ability_uses + p.item_uses + 1) * 5 * (
-							tf.r_kills + 1 / 5)) / (match.r_score * (tf.r_dmg + 1) * (tf.r_heal + 1) * (
-							(tf.r_casts + .1) * 5)))
-				else:
+					team = tf.radiant_team
+					team_usage_score = calculate_teamfight(team)
+				elif p.side == "d":
 					d_gold += p.gold_delta
+					team = tf.dire_team
+					team_usage_score = calculate_teamfight(team)
 
-					# Teamfight Usage Score
-					usage = 100 * (((p.damage + 1) * (p.healing + 1) * (p.ability_uses + p.item_uses + 1) * 5 * (
-							tf.d_kills + 1 / 5)) / (match.d_score * (tf.d_dmg + 1) * (tf.d_heal + 1) * (
-							(tf.d_casts + 1) * 5)))
+				# Calculates the usage score for the teamfight
+				usage = calculate_usage(p, team_usage_score, match, num_of_fights)
 
 				if p.hero_id == hero_id:
+					#print(usage)
 					scores.append(usage)
 
 			# Calculates where and what to add/subtract the result of a teamfight
@@ -161,7 +192,6 @@ class Player:
 			# -> Checks if the main Player was in or out of the teamfight
 			# -> Does the correct operation for the situation
 			# -> Repeat for next teamfight
-
 			if r_gold > d_gold:
 				tf.result = "r"
 				if side == "r":
@@ -187,28 +217,23 @@ class Player:
 					else:
 						opm -= 1
 
-		us = 0
-		for i in scores:
-			us += i
+		# Returns the avg usage rate.
+		usg = avg_usage(scores, num_of_fights)
 
-		us / len(teamfights)
-
-		# Final data
-		self.teamfight_usage = us
+		# Sets final player data
+		self.teamfight_usage.append(round(usg, 2))
 		self.in_fight_pm.append(ipm)
 		self.out_fight_pm.append(opm)
-		self.teamfight_count.append(len(teamfights))
+		self.teamfight_count.append(num_of_fights)
 
-		print(ipm)
-		print(opm)
-		print(len(teamfights))
+		self.on_match_finish(match)
 
 	def on_wl(self, wins, loses):
 		"""On Win Lose is when the api response is the wl of X games"""
 		self.wins = wins
 		self.loses = loses
 
-	def on_match_result(self, json):
+	def on_match_result(self, json, match_index):
 		"""When the api response is a dota match"""
 		hero_id = 0
 
@@ -224,34 +249,38 @@ class Player:
 				self.gold.append(player["gold"])
 				hero_id = player["hero_id"]
 
-		match = Match()
+		match = Match(match_index)
 		match.duration = json["duration"]
 		match.d_score = json["dire_score"]
 		match.r_score = json["radiant_score"]
 
 		self.parse_teamfight(json, hero_id, match)
 
+	def on_match_finish(self, match):
+		print("~ Match {0} Finished ~".format(match.index + 1))
+		print("Usage:", self.teamfight_usage[match.index])
+
 	def on_finish(self):
 		"""
 			When no there are no longer any user entered Players in the queue on_finish() will be called.
 			Usually this is where any final data is created (Averaged of the data mostly).
 		"""
+		print("~~~~~ %s's Stats ~~~~~" % self.name)
 		total_games = len(self.kills)
-		print(self.name + " " + str(self.rank))
-		print(str(self.wins) + "/" + str(self.loses))
+		print("Rank:", self.rank)
+		print("W/L: {0}/{1}".format(self.wins, self.loses))
+
 		tk = 0
 		for k in self.kills:
 			tk += k
 		r = tk / total_games
-		print(r)
+		print("Kills:", r)
 
-		ipm = 0
-		opm = 0
-		total = 0
-		for i in range(total_games):
-			ipm += self.in_fight_pm[i]
-			opm += self.out_fight_pm[i]
-			total += self.teamfight_count[i]
-		print(ipm / total_games)
-		print(opm / total_games)
-		print(total / total_games)
+		ipm = sum(self.in_fight_pm)
+		opm = sum(self.out_fight_pm)
+		total = sum(self.teamfight_count)
+		usage = sum(self.teamfight_usage)
+
+		print("Teamfight +-: {0}/{1}".format((ipm / total_games), (opm / total_games)))
+		print("Usage: {0}%".format(round((usage / total_games), 2)))
+		print("Total fights {0}".format(total / total_games))
