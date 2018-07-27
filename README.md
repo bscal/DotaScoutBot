@@ -1,20 +1,20 @@
 # DotaScoutBot
-A Python Program that will scout dota 2 players. Uses OpenDota API
+A Python Program that will scout dota 2 players or matches. Uses OpenDota API
 
 *The program is in early stages of development and not all features I wanted to add are working or added*
 
-So far you can input multiple steamids and can return the Personaname, Rank, Avg KDA of recent games, Avg Teamfight Plus Minus.
-
-This project is not fully complete or tested. I have not put alot of effort in to making it nice and clean.
-
-I will covert this to an executable later on when it is more complete.
+You can input steamids or matchids that will return and parse data for you.
 
 # Running
-This is only runnable on Python3 however I never tested on 2.7.
+Developed with Python3
 
 No dependencies 
 
-Usage: python dota.py (steamid1) (steamid2)
+Usage: 
+   $ python dota.py (steamid1) (steamid2) ...
+   $ python dota.py -match (matchid1) (matchid2) ...
 
 # Updates
-I am working on so you can parse a whole match or matches for a specified player.
+I would like to adjust values for Teamfight participation and usage %.
+Also interested in adding creeps fed. For example (Beastmaster fed this many boars/hawks/creeps worth X amount of gold)
+I want to add some interface or UI. And Graphs

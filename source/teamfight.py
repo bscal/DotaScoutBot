@@ -22,6 +22,7 @@ class TMFPlayer:
 	def __init__(self):
 		self.hero_id = 0
 		self.side = ""
+		self.was_in = False
 		self.ability_uses = 0
 		self.item_uses = 0
 		self.kills = 0

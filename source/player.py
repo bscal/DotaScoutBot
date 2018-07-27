@@ -6,6 +6,8 @@ For TMFPlayer.side use "r" for radiant or "d" for dire
 For tf_score in parse_teamfights() dire advantage is represented by - negative integers while radiant is + positive integers
 """
 from teamfight import Teamfight, TMFPlayer
+from match import Match
+import gold
 
 # Constant used in usage algorithms
 USAGE_USES_MODIFIER = 5
@@ -38,15 +40,6 @@ def calculate_usage(player, team_score, match_score, total_fights):
 	return 100 * (player_score / team_score)
 
 
-class Match:
-	"""Used to hold basic data of a dota match"""
-	def __init__(self, match_index):
-		self.index = match_index
-		self.duration = 0
-		self.r_score = 0
-		self.d_score = 0
-
-
 class Player:
 	"""
 		Used to store data of the Player from the steamid's the user entered.
@@ -74,6 +67,8 @@ class Player:
 		self.out_fight_pm = []
 		self.teamfight_count = []
 		self.teamfight_usage = []
+		self.gold_score = []
+		self.lh_score = []
 
 	def parse_teamfight(self, json, hero_id, match):
 		"""
@@ -228,16 +223,20 @@ class Player:
 
 		self.on_match_finish(match)
 
-	def on_wl(self, wins, loses):
+	def on_wl(self, data):
 		"""On Win Lose is when the api response is the wl of X games"""
-		self.wins = wins
-		self.loses = loses
+		self.wins = data["win"]
+		self.loses = data["lose"]
 
-	def on_match_result(self, json, match_index):
+	def on_player_data(self, data):
+		self.name = data["profile"]["personaname"]
+		self.rank = data["rank_tier"]
+
+	def on_match(self, data, match_index):
 		"""When the api response is a dota match"""
 		hero_id = 0
 
-		for player in json["players"]:
+		for player in data["players"]:
 			if str(player["account_id"]) == self.steamid:
 				self.assists.append(player["assists"])
 				self.kills.append(player["hero_kills"])
@@ -247,18 +246,20 @@ class Player:
 				self.build_dmg.append(player["tower_damage"])
 				self.stuns.append(player["stuns"])
 				self.gold.append(player["gold"])
+				self.gold_score.append(gold.get_gold_score(player["gold_t"][9]))
 				hero_id = player["hero_id"]
 
 		match = Match(match_index)
-		match.duration = json["duration"]
-		match.d_score = json["dire_score"]
-		match.r_score = json["radiant_score"]
+		match.duration = data["duration"]
+		match.d_score = data["dire_score"]
+		match.r_score = data["radiant_score"]
 
-		self.parse_teamfight(json, hero_id, match)
+		self.parse_teamfight(data, hero_id, match)
 
 	def on_match_finish(self, match):
 		print("~ Match {0} Finished ~".format(match.index + 1))
 		print("Usage:", self.teamfight_usage[match.index])
+		print("GoldScore:", self.gold_score[match.index])
 
 	def on_finish(self):
 		"""
@@ -266,9 +267,10 @@ class Player:
 			Usually this is where any final data is created (Averaged of the data mostly).
 		"""
 		print("~~~~~ %s's Stats ~~~~~" % self.name)
-		total_games = len(self.kills)
 		print("Rank:", self.rank)
 		print("W/L: {0}/{1}".format(self.wins, self.loses))
+
+		total_games = len(self.kills)
 
 		tk = 0
 		for k in self.kills:
@@ -280,7 +282,9 @@ class Player:
 		opm = sum(self.out_fight_pm)
 		total = sum(self.teamfight_count)
 		usage = sum(self.teamfight_usage)
+		gold_score = sum(self.gold_score)
 
 		print("Teamfight +-: {0}/{1}".format((ipm / total_games), (opm / total_games)))
 		print("Usage: {0}%".format(round((usage / total_games), 2)))
 		print("Total fights {0}".format(total / total_games))
+		print("Gold Score: {0}".format(gold_score / total_games))

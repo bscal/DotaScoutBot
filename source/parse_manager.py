@@ -1,0 +1,127 @@
+from player import Player
+from match import Match
+from urllib.request import urlopen
+from urllib.error import HTTPError
+import json
+
+API_URL = "https://api.opendota.com/api/"
+MATCH_URL = API_URL + "matches/" # + matchid/(params)
+PLAYER_URL = API_URL + "players/" # + steamid/(params)
+NUM_OF_GAMES = 5
+REQUESTS_PER_SECOND = 1
+
+
+class ParseManager:
+	def __init__(self, type: str = "player"):
+		self.type = type
+		self.done = False
+		self.request_queue = []
+		self.open_list = []
+		self.closed_list = []
+		self.request_count = 0
+
+		self.players = []
+		self.matches = []
+		self.index = 0
+
+	def prepare_parse(self, in_data):
+		if self.type == "match":
+			self.create_match_task(in_data)
+		elif self.type == "player":
+			self.create_player_task(in_data)
+
+	def update(self):
+		if len(self.request_queue) > 0:
+			if self.request_count > (REQUESTS_PER_SECOND - 1):
+				return
+			else:
+				self.make_request()
+
+		elif len(self.open_list) < 1:
+			self.finished()
+
+	def make_request(self):
+		self.request_count += 1
+		try:
+			url = self.request_queue[0]
+			print(url)
+
+			response = urlopen(url)
+			j = response.read()
+			data = json.loads(j)
+
+			self.handle_response(url, data)
+
+			self.request_queue.pop(0)
+		except HTTPError as err:
+			print("Err: 1", err)
+
+	def handle_response(self, url, data):
+		if "wl" in url:
+			self.players[0].on_wl(data)
+		elif "api/matches" in url:
+			if self.type == "match":
+				self.matches[len(self.closed_list)].on_match(data)
+				self.matches[len(self.closed_list)].on_match_finish()
+				self.on_input_finished()
+			else:
+				self.players[0].on_match(data, self.index)
+				self.reset_index()
+		elif "matches" in url:
+			for match in data:
+				self.request_queue.append(MATCH_URL + str(match['match_id']))
+		elif "players" in url:
+			self.players[0].on_player_data(data)
+		elif "heroes" in url:
+			pass
+		else:
+			print("Error: Not a proper response.")
+
+	def on_input_finished(self):
+		if len(self.open_list) > 0:
+			self.closed_list.append(self.open_list.pop(0))
+
+	def finished(self):
+		if self.type == "match":
+			self.matches[0].on_finish()
+		else:
+			self.players[0].on_finish()
+		self.done = True
+
+	def create_match_task(self, matchids):
+		if isinstance(matchids, list):
+			for id in matchids:
+				self.open_list.append(id)
+				self.matches.append(Match(len(self.open_list)))
+				self.request_queue.append("{0}{1}".format(MATCH_URL, id))
+
+		else:
+			self.open_list.append(matchids)
+			self.matches.append(Match(len(self.open_list)))
+			self.request_queue.append("{0}{1}".format(MATCH_URL, matchids))
+
+	def create_player_task(self, steamids):
+		if isinstance(steamids, list):
+			for id in steamids:
+				self.open_list.append(id)
+				self.players.append(Player(id))
+				self.player_request(id)
+
+		else:
+			self.open_list.append(steamids)
+			self.players.append(Player(steamids))
+			self.player_request(steamids)
+
+	def reset_index(self):
+		self.index += 1
+		if self.index > NUM_OF_GAMES - 1:
+			# This resets the matchs for Players
+			# Since we dont want to `pop()` the player
+			# Everytime a match is returned.
+			self.on_input_finished()
+			self.index = 0
+
+	def player_request(self, id):
+		self.request_queue.append("{0}{1}".format(PLAYER_URL, id))
+		self.request_queue.append("{0}{1}/wl?limit={2}".format(PLAYER_URL, id, NUM_OF_GAMES))
+		self.request_queue.append("{0}{1}/matches?limit={2}".format(PLAYER_URL, id, NUM_OF_GAMES))
