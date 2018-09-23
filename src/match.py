@@ -5,8 +5,8 @@ class MatchPlayer:
 	def __init__(self, data):
 		self.slot = 		data["player_slot"]
 		self.heroid = 		data["hero_id"]
-		isAvaiable = "personaname" in data
-		self.name = data["personaname"] if isAvaiable else "Anonymous"
+		isAvaiable = 		"personaname" in data
+		self.name = 		data["personaname"] if isAvaiable else "Anonymous"
 		self.id = 			data["account_id"]
 
 		self.kda = 			(data["kills"], data["deaths"], data["assists"])
