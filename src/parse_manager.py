@@ -4,9 +4,10 @@ from urllib.request import urlopen
 from urllib.error import HTTPError
 import json
 
+
 API_URL = "https://api.opendota.com/api/"
-MATCH_URL = API_URL + "matches/" # + matchid/(params)
-PLAYER_URL = API_URL + "players/" # + steamid/(params)
+MATCH_URL = API_URL + "matches/"  # + matchid/(params)
+PLAYER_URL = API_URL + "players/"  # + steamid/(params)
 NUM_OF_GAMES = 5
 REQUESTS_PER_SECOND = 1
 
@@ -24,11 +25,18 @@ class ParseManager:
 		self.matches = []
 		self.index = 0
 
-	def prepare_parse(self, in_data):
-		if self.type == "match":
-			self.create_match_task(in_data)
-		elif self.type == "player":
-			self.create_player_task(in_data)
+	def prepare_parse(self, parseType, ids):
+		# Sets Parsetype
+		if parseType == 1:
+			self.type == "player"
+		elif parseType == 2:
+			self.type == "match"
+
+		# Sets up lists of Opendota urls and openlist
+		if self.type == "player":
+			self.create_player_task(ids)
+		elif self.type == "match":
+			self.create_match_task(ids)
 
 	def update(self):
 		if len(self.request_queue) > 0:
@@ -36,7 +44,6 @@ class ParseManager:
 				return
 			else:
 				self.make_request()
-
 		elif len(self.open_list) < 1:
 			self.finished()
 
@@ -57,8 +64,10 @@ class ParseManager:
 			print("Err: 1", err)
 
 	def handle_response(self, url, data):
+		# Win/Loss
 		if "wl" in url:
 			self.players[0].on_wl(data)
+		# Parse Matches
 		elif "api/matches" in url:
 			if self.type == "match":
 				self.matches[len(self.closed_list)].on_match(data)
@@ -67,11 +76,15 @@ class ParseManager:
 			else:
 				self.players[0].on_match(data, self.index)
 				self.reset_index()
+		# Recent Matches List
 		elif "matches" in url:
 			for match in data:
 				self.request_queue.append(MATCH_URL + str(match['match_id']))
+		# Players
 		elif "players" in url:
 			self.players[0].on_player_data(data)
+		# Update Heroes
+		# TODO
 		elif "heroes" in url:
 			pass
 		else:
@@ -81,12 +94,16 @@ class ParseManager:
 		if len(self.open_list) > 0:
 			self.closed_list.append(self.open_list.pop(0))
 
+	# Called when parse is FULLY finished.
 	def finished(self):
-		if self.type == "match":
+		if len(self.matches) < 1 or len(self.players) < 1:
+			pass
+		elif self.type == "match":
 			self.matches[0].on_finish()
 		else:
 			self.players[0].on_finish()
 		self.done = True
+		print("cleaning up...")
 
 	def create_match_task(self, matchids):
 		if isinstance(matchids, list):

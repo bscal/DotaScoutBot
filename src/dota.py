@@ -1,26 +1,12 @@
-from parse_manager import ParseManager
 import sys
-import time
+
+from app import Application
 
 DEBUG = True
-# Opendota's only allows 1(5) request for free(with key)
-UPDATES_PER_SECOND = 10
-manager = ParseManager()
+app = None
 
 
-def get_milli_time():
-	return int(round(time.time() * 1000))
-
-
-def update():
-	if manager.done:
-		print("\nFinished.\nExiting...")
-		sys.exit()
-	else:
-		manager.update()
-
-
-def init_dota(args):
+def init_dota(args, app):
 	""" Parses the arguments to setup whatever user needs.
 		If you -match will set mode to matched
 	"""
@@ -30,7 +16,7 @@ def init_dota(args):
 		if "-" in arg:
 			# Sets mode to match
 			if arg == "-match":
-				manager.type = "match"
+				app.manager.type = "match"
 				print("ParseMode set to match")
 			elif arg == "-update":
 				pass
@@ -39,29 +25,21 @@ def init_dota(args):
 		else:
 			content.append(arg)
 
-	manager.prepare_parse(content)
+	app.manager.prepare_parse(content)
+
+
+def update():
+	pass
 
 
 def main():
-	start = get_milli_time() + 1000 / UPDATES_PER_SECOND
-	count = 0
+	global app
+	app = Application()
 
-	init_dota(sys.argv[1:])
+	if len(sys.argv) > 1:
+		init_dota(sys.argv[1:], app)
 
-	try:
-		while 1:
-			sleep_time = start - get_milli_time()
-			if sleep_time < 0:
-				count += 1
-				update()
-				start = get_milli_time() + 1000 / UPDATES_PER_SECOND
-				if count > UPDATES_PER_SECOND:
-					count = 0
-					manager.request_count = 0
-
-	except KeyboardInterrupt:
-		print("Exiting...")
-		sys.exit()
+	app.start()
 
 
 if __name__ == "__main__":

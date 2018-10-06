@@ -46,6 +46,7 @@ class Player:
 		This is the where all final values and stats should be stored.
 		Most values are stored in lists because they are stored from multiple games.
 	"""
+
 	def __init__(self, steamid):
 		self.steamid = steamid
 		self.name = ""
@@ -176,7 +177,7 @@ class Player:
 				usage = calculate_usage(p, team_usage_score, match, num_of_fights)
 
 				if p.hero_id == hero_id:
-					#print(usage)
+					# print(usage)
 					scores.append(usage)
 
 			# Calculates where and what to add/subtract the result of a teamfight
@@ -216,12 +217,13 @@ class Player:
 		usg = avg_usage(scores, num_of_fights)
 
 		# Sets final player data
+		self.set_teamfight_results(usg, ipm, opm, num_of_fights)
+
+	def set_teamfight_results(self, usg=0, ipm=0, opm=0, num_of_fights=0):
 		self.teamfight_usage.append(round(usg, 2))
 		self.in_fight_pm.append(ipm)
 		self.out_fight_pm.append(opm)
 		self.teamfight_count.append(num_of_fights)
-
-		self.on_match_finish(match)
 
 	def on_wl(self, data):
 		"""On Win Lose is when the api response is the wl of X games"""
@@ -236,30 +238,45 @@ class Player:
 		"""When the api response is a dota match"""
 		hero_id = 0
 
+		match = Match(match_index)
+		match.duration = data["duration"]
+		match.d_score = data["dire_score"]
+		match.r_score = data["radiant_score"]
+
+		if data["chat"] is None: match.isUnparsed = True
+
 		for player in data["players"]:
 			if str(player["account_id"]) == self.steamid:
 				self.assists.append(player["assists"])
-				self.kills.append(player["hero_kills"])
+				self.kills.append(player["kills"])
 				self.deaths.append(player["deaths"])
 				self.hero_dmg.append(player["hero_damage"])
 				self.hero_heal.append(player["hero_healing"])
 				self.build_dmg.append(player["tower_damage"])
 				self.stuns.append(player["stuns"])
 				self.gold.append(player["gold"])
-				self.gold_score.append(gold.get_gold_score(player["gold_t"][9]))
+
+				# Temp variables to handle if the match is unparsed on Opendota
+				gold_score = 0
+				if match.isUnparsed is False:
+					gold_score = gold.get_gold_score(player["gold_t"][9])
+				self.gold_score.append(gold_score)
 				hero_id = player["hero_id"]
 
-		match = Match(match_index)
-		match.duration = data["duration"]
-		match.d_score = data["dire_score"]
-		match.r_score = data["radiant_score"]
+		if match.isUnparsed is False:
+			self.parse_teamfight(data, hero_id, match)
+		else:
+			# Sets the teamfight values to defaults (0)
+			self.set_teamfight_results()
 
-		self.parse_teamfight(data, hero_id, match)
+		self.on_match_finish(match)
 
 	def on_match_finish(self, match):
 		print("~ Match {0} Finished ~".format(match.index + 1))
-		print("Usage:", self.teamfight_usage[match.index])
-		print("GoldScore:", self.gold_score[match.index])
+		print("Full Parse:", match.isUnparsed)
+		if match.isUnparsed is False:
+			print("Usage:", self.teamfight_usage[match.index])
+			print("GoldScore:", self.gold_score[match.index])
 
 	def on_finish(self):
 		"""

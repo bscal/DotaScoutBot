@@ -30,6 +30,7 @@ class Match:
 
 	def __init__(self, match_index: int):
 		self.index = match_index
+		self.isUnparsed = False
 		self.duration = 0
 		self.r_score = 0
 		self.d_score = 0
