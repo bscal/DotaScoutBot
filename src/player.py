@@ -47,14 +47,14 @@ class Player:
 		Most values are stored in lists because they are stored from multiple games.
 	"""
 
-	def __init__(self, steamid):
+	def __init__(self, steamid, totalGames):
 		self.steamid = steamid
 		self.name = ""
 		self.rank = 0
 		self.wins = 0
 		self.loses = 0
 
-		self.total_matches = 0
+		self.total_matches = totalGames
 
 		self.kills = []
 		self.assists = []
@@ -70,6 +70,8 @@ class Player:
 		self.teamfight_usage = []
 		self.gold_score = []
 		self.lh_score = []
+		self.gpm = []
+		self.xpm = []
 
 	def parse_teamfight(self, json, hero_id, match):
 		"""
@@ -243,7 +245,10 @@ class Player:
 		match.d_score = data["dire_score"]
 		match.r_score = data["radiant_score"]
 
-		if data["chat"] is None: match.isUnparsed = True
+		if data["chat"] is None:
+			match.fullParse = False
+		else:
+			match.fullParse = True
 
 		for player in data["players"]:
 			if str(player["account_id"]) == self.steamid:
@@ -255,15 +260,17 @@ class Player:
 				self.build_dmg.append(player["tower_damage"])
 				self.stuns.append(player["stuns"])
 				self.gold.append(player["gold"])
+				self.gpm.append(player["gold_per_min"])
+				self.xpm.append(player["xp_per_min"])
 
 				# Temp variables to handle if the match is unparsed on Opendota
 				gold_score = 0
-				if match.isUnparsed is False:
+				if match.fullParse is True:
 					gold_score = gold.get_gold_score(player["gold_t"][9])
 				self.gold_score.append(gold_score)
 				hero_id = player["hero_id"]
 
-		if match.isUnparsed is False:
+		if match.fullParse is True:
 			self.parse_teamfight(data, hero_id, match)
 		else:
 			# Sets the teamfight values to defaults (0)
@@ -273,8 +280,8 @@ class Player:
 
 	def on_match_finish(self, match):
 		print("~ Match {0} Finished ~".format(match.index + 1))
-		print("Full Parse:", match.isUnparsed)
-		if match.isUnparsed is False:
+		print("Full Parse:", match.fullParse)
+		if match.fullParse is True:
 			print("Usage:", self.teamfight_usage[match.index])
 			print("GoldScore:", self.gold_score[match.index])
 
@@ -283,17 +290,21 @@ class Player:
 			When no there are no longer any user entered Players in the queue on_finish() will be called.
 			Usually this is where any final data is created (Averaged of the data mostly).
 		"""
+		print("")
 		print("~~~~~ %s's Stats ~~~~~" % self.name)
 		print("Rank:", self.rank)
-		print("W/L: {0}/{1}".format(self.wins, self.loses))
+		print("{0} Total Games".format(self.total_matches))
+		print("W/L: {0}%({1}/{2})".format(100 * self.wins / self.total_matches, self.wins, self.loses))
 
-		total_games = len(self.kills)
-
-		tk = 0
-		for k in self.kills:
-			tk += k
-		r = tk / total_games
-		print("Kills:", r)
+		k = sum(self.kills) / self.total_matches
+		d = sum(self.deaths) / self.total_matches
+		a = sum(self.assists) / self.total_matches
+		print("AVG Kills:", k)
+		print("AVG Deaths:", d)
+		print("AVG Assists:", a)
+		print("AVG KDA:", round((k + a) / d), 2)
+		print("AVG GPM:", sum(self.gpm) / self.total_matches)
+		print("AVG XPM:", sum(self.xpm) / self.total_matches)
 
 		ipm = sum(self.in_fight_pm)
 		opm = sum(self.out_fight_pm)
@@ -301,7 +312,7 @@ class Player:
 		usage = sum(self.teamfight_usage)
 		gold_score = sum(self.gold_score)
 
-		print("Teamfight +-: {0}/{1}".format((ipm / total_games), (opm / total_games)))
-		print("Usage: {0}%".format(round((usage / total_games), 2)))
-		print("Total fights {0}".format(total / total_games))
-		print("Gold Score: {0}".format(gold_score / total_games))
+		print("Teamfight +-: {0}/{1}".format((ipm / self.total_matches), (opm / self.total_matches)))
+		print("Usage: {0}%".format(round((usage / self.total_matches), 2)))
+		print("Fights per Match {0}".format(total / self.total_matches))
+		print("Gold Score: {0}".format(round((gold_score / self.total_matches), 2)))

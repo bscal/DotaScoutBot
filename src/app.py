@@ -7,9 +7,7 @@ from parse_manager import ParseManager
 
 WIDTH = 250
 HEIGHT = 150
-
-# Opendota's only allows 1(5) request for free(with key)
-UPDATES_PER_SECOND = 10
+REQUESTS_PER_MINUTE = 60
 
 
 def get_milli_time():
@@ -66,6 +64,30 @@ class Application():
 	def parse(self):
 		self.manager.prepare_parse(self.var.get(), self.idVar.get())
 
+		try:
+			while 1:
+
+				count = 0
+				last_time = time.time()
+
+				if self.manager.done:
+					print("Finished Parse. Idling...")
+					sys.exit()
+
+				elif count < REQUESTS_PER_MINUTE:
+					self.manager.update()
+					count += 1
+
+					if last_time > time.time() - 60.0:
+						count = 0
+
+		except KeyboardInterrupt:
+			print("Exiting...")
+			sys.exit()
+
+
+'''
+# Old loop
 		start = get_milli_time() + 1000 / UPDATES_PER_SECOND
 		count = 0
 		try:
@@ -84,3 +106,4 @@ class Application():
 			sys.exit()
 
 		print("Finished Parse")
+'''

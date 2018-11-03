@@ -30,14 +30,14 @@ class Match:
 
 	def __init__(self, match_index: int):
 		self.index = match_index
-		self.isUnparsed = False
+		self.fullParse = False
 		self.duration = 0
 		self.r_score = 0
 		self.d_score = 0
 
 	def on_match(self, data: dict) -> int:
 		for player in data["players"]:
-			self.players.append(MatchPlayer(player));
+			self.players.append(MatchPlayer(player))
 
 		for teamfight in data["teamfights"]:
 			count = 0
@@ -81,7 +81,7 @@ class Match:
 				count += 1
 
 			self.teamfights.append(tf)
-		return 0;
+		return 0
 
 	def on_match_finish(self):
 		print("~~~~~ Match {0} Finished ~~~~~".format(self.matchid))

@@ -8,8 +8,7 @@ import json
 API_URL = "https://api.opendota.com/api/"
 MATCH_URL = API_URL + "matches/"  # + matchid/(params)
 PLAYER_URL = API_URL + "players/"  # + steamid/(params)
-NUM_OF_GAMES = 5
-REQUESTS_PER_SECOND = 1
+NUM_OF_GAMES = 8
 
 
 class ParseManager:
@@ -25,12 +24,14 @@ class ParseManager:
 		self.matches = []
 		self.index = 0
 
+		self.REQUESTS_PER_SECOND = 60
+
 	def prepare_parse(self, parseType, ids):
 		# Sets Parsetype
 		if parseType == 1:
-			self.type == "player"
+			self.type = "player"
 		elif parseType == 2:
-			self.type == "match"
+			self.type = "match"
 
 		# Sets up lists of Opendota urls and openlist
 		if self.type == "player":
@@ -40,7 +41,7 @@ class ParseManager:
 
 	def update(self):
 		if len(self.request_queue) > 0:
-			if self.request_count > (REQUESTS_PER_SECOND - 1):
+			if self.request_count > (self.REQUESTS_PER_SECOND - 1):
 				return
 			else:
 				self.make_request()
@@ -98,12 +99,11 @@ class ParseManager:
 	def finished(self):
 		if len(self.matches) < 1 or len(self.players) < 1:
 			pass
-		elif self.type == "match":
+		if self.type == "match":
 			self.matches[0].on_finish()
 		else:
 			self.players[0].on_finish()
 		self.done = True
-		print("cleaning up...")
 
 	def create_match_task(self, matchids):
 		if isinstance(matchids, list):
@@ -121,12 +121,12 @@ class ParseManager:
 		if isinstance(steamids, list):
 			for id in steamids:
 				self.open_list.append(id)
-				self.players.append(Player(id))
+				self.players.append(Player(id, NUM_OF_GAMES))
 				self.player_request(id)
 
 		else:
 			self.open_list.append(steamids)
-			self.players.append(Player(steamids))
+			self.players.append(Player(steamids, NUM_OF_GAMES))
 			self.player_request(steamids)
 
 	def reset_index(self):
